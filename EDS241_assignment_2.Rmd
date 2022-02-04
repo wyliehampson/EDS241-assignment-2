@@ -14,7 +14,7 @@ header-includes:
 ``` {r setup, echo = FALSE, message = FALSE, warning = FALSE}
 
 # set default chunk options
-knitr::opts_chunk$set(fig.width = 4, fig.height = 3, 
+knitr::opts_chunk$set(fig.width = 5, fig.height = 4, 
                       echo = TRUE, message = FALSE, warning = FALSE)
 
 
@@ -48,7 +48,8 @@ the sample from 2003 to 2008, so the 2008-2000 change give us a sense of the pro
 effect on emissions. If emissions of NOx from power plants declined in a county, then
 Dnox_masstons should be negative
 
-### Import and clean the data
+\noindent 
+**Import and clean the data**
 
 ```{r}
 nox_data <- read_excel(here("data", "NBP.xls")) %>% 
@@ -75,13 +76,12 @@ dnox_hist
 
 ```{r}
 pct_black_median <- median(nox_data$pct_black)
-pct_black_median
 
 nox_data <- nox_data %>% 
-  mutate(pct_black_above_median = ifelse((pct_black > pct_black_median), 1, 0))
+  mutate(d = ifelse((pct_black > pct_black_median), 1, 0))
 
 counties_above_median <- nox_data %>% 
-  filter(pct_black_above_median == 1)
+  filter(d == 1)
 
 avg_above_median <- mean(counties_above_median$pct_black)
 avg_above_median
@@ -104,9 +104,37 @@ model_1_table
 
 ```
 
+\noindent
+*The regression of `dnox_masstons` on nbp gives us an intercept coefficient of -3.62, which means that for a county that was not regulated under the NOx budget program, we would expect their change in annual NOx emissions from all power plants between 2000 and 2008 to be -3.62 tons on average. The nbp coefficient in this regression is -3.92, which means that we would expect counties that were regulated under the NOx budget program to have their change in annual NOx emissions from all power plants between 2000 and 2008 be -3.92 tons more than counties that were not regulated under the NOx budget program. The nbp coefficient is the difference in `dnox_masstons` between counties that we under NBP regulations and those that were not.*
 
+\noindent
+**Question d: Create an interaction between the variables NBP and D. Estimate a regression of Dnox_masstons on NBP, D, and this interaction. Interpret each estimated regression coefficient, including the intercept.**
 
+```{r}
+model_2 <- lm_robust(formula = dnox_masstons ~ nbp + d + (nbp * d), data = nox_data)
 
+model_2_table <- broom::tidy(model_2) %>% 
+  dplyr::select(term, estimate, std.error, p.value) %>%
+  knitr::kable()
+
+model_2_table
+
+```
+
+\noindent
+*In this regression the intercept coefficient is -2.42. This says that for counties that are not under NBP regulations and whose percentage of black population is below the median, on average they would expect to have a `dnox_masstons` of -2.42. The nbp coefficient is -7.14, which is the difference of `dnox_masstons` between counties that are under NBP regulations with a black population percentage below the median, and counties that are not under NBP regulations, with a black population percentage below the median. The d coefficient is -2.59, which is the difference of `dnox_masstons` between counties that have a black population percentage above the median, and not under NBP regulatiosn, and counties that have a black population percentage below the median, and not under NBP regulations. Finally, the nbp:d coefficient is 6.37, which is the change in `dnox_masstons` in counties that are under NBP regulations with with a black population percentage above the median, in addition to the change associated with the other coefficients.*
+
+\noindent
+**Question e: What is the predicted Dnox_masstons in a county that was not regulated under NBP and where PctBlack is above the sample median (i.e., where D=1)? Report the 95% confidence interval for this prediction. Make sure to use “heteroskedasticity-robust” standard errors.**
+
+```{r}
+nox_pred <- data.frame(nbp = 0, d = 1)
+
+predict(model_2, newdata = nox_pred, se.fit=TRUE, interval='confidence')
+```
+
+\noindent
+*In a county that was not regulated under NBP, and where `pct_black` is above the sample median, the predicted `dnox_masstons` (the change in annual NOx emissions from all power plants in a county between 2000 and 2008 (in tons)) is -5.01 tons. We are 95% confident that the predicted `dnox_masstons` is between -6.44 tons and -3.57 tons.*
 
 
 
